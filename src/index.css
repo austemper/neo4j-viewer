@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-slate-950 text-slate-100 font-sans;
+    overscroll-behavior: none;
+    /* 長押し抑制 */
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  /*
+   * ダブルタップズームの抑制（iOS Safari はviewport の user-scalable=no を無視するため CSS で対処）
+   * manipulation = シングルタップ・パンは許可、ダブルタップズーム・ピンチズームは禁止
+   * canvas は個別に touch-action:none を設定するのでここでは除外しない（上書き可）
+   */
+  *, *::before, *::after {
+    touch-action: manipulation;
+  }
+  /* 入力欄はテキスト選択を有効に戻す */
+  input, textarea, [contenteditable] {
+    user-select: text;
+    -webkit-user-select: text;
+    -webkit-touch-callout: default;
+  }
+  /* ボタンの長押し色反転を防ぐ */
+  button {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-slate-800 rounded-2xl border border-slate-700/50 transition-all duration-200;
+  }
+  .card-active {
+    @apply active:scale-[0.98] active:bg-slate-700;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .prop-row {
+    @apply flex items-start gap-2 py-2 border-b border-slate-700/40 last:border-0;
+  }
+  .input-field {
+    @apply w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm
+      text-slate-100 placeholder-slate-600 focus:outline-none focus:border-neo-500;
+  }
+}
+
+/* スクロールバー非表示 */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* 細いスクロールバー（ポップアップ用） */
+.scrollbar-thin { scrollbar-width: thin; scrollbar-color: #475569 transparent; }
+.scrollbar-thin::-webkit-scrollbar { width: 4px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* ==========================
+   ライトモード
+   ========================== */
+html.light body { background-color: #f8fafc; color: #0f172a; }
+
+/* カード・インプット */
+html.light .card { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+html.light .input-field { background-color: #ffffff !important; border-color: #94a3b8 !important; color: #0f172a !important; }
+html.light .input-field::placeholder { color: #94a3b8 !important; }
+html.light .badge { color: #ffffff !important; }
+
+/* 背景（不透明） */
+html.light .bg-slate-950 { background-color: #f8fafc !important; }
+html.light .bg-slate-900 { background-color: #f1f5f9 !important; }
+html.light .bg-slate-800 { background-color: #e8edf2 !important; }
+html.light .bg-slate-700 { background-color: #d1d9e3 !important; }
+
+/* 背景（透明度付き Tailwind opacity variants） */
+html.light .bg-slate-950\/70 { background-color: rgba(248,250,252,.85) !important; }
+html.light .bg-slate-950\/75 { background-color: rgba(248,250,252,.88) !important; }
+html.light .bg-slate-950\/90 { background-color: rgba(248,250,252,.95) !important; }
+html.light .bg-slate-900\/60 { background-color: rgba(241,245,249,.7) !important; }
+html.light .bg-slate-900\/80 { background-color: rgba(241,245,249,.88) !important; }
+html.light .bg-slate-900\/90 { background-color: rgba(241,245,249,.93) !important; }
+html.light .bg-slate-900\/95 { background-color: rgba(241,245,249,.97) !important; }
+html.light .bg-slate-800\/30 { background-color: rgba(226,232,240,.5) !important; }
+html.light .bg-slate-800\/40 { background-color: rgba(226,232,240,.6) !important; }
+html.light .bg-slate-800\/50 { background-color: rgba(226,232,240,.7) !important; }
+html.light .bg-slate-800\/80 { background-color: rgba(226,232,240,.88) !important; }
+
+/* テキスト */
+html.light .text-white,
+html.light .text-slate-100 { color: #0f172a !important; }
+html.light .text-slate-200 { color: #1e293b !important; }
+html.light .text-slate-300 { color: #334155 !important; }
+html.light .text-slate-400 { color: #475569 !important; }
+html.light .text-slate-500 { color: #64748b !important; }
+html.light .text-slate-600 { color: #64748b !important; }
+html.light .text-slate-700 { color: #475569 !important; }
+
+/* ボーダー */
+html.light .border-slate-800,
+html.light .border-slate-800\/50,
+html.light .border-slate-800\/60 { border-color: #e2e8f0 !important; }
+html.light .border-slate-700,
+html.light .border-slate-700\/40,
+html.light .border-slate-700\/50 { border-color: #cbd5e1 !important; }
+
+/* ヘッダー・ナビ（sticky/fixed 要素） */
+html.light header { background-color: rgba(248,250,252,.95) !important; border-color: #e2e8f0 !important; }
+html.light nav    { background-color: rgba(248,250,252,.95) !important; border-color: #e2e8f0 !important; }
+
+/* ===
+   ボタン・アイコン: 白背景＋ボーダーで統一
+*/
+/* button / a 要素（bg-slate-* 付き） */
+html.light button.bg-slate-800,
+html.light a.bg-slate-800 {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+html.light button.bg-slate-700,
+html.light a.bg-slate-700 {
+  background-color: #f8fafc !important;
+  border: 1.5px solid #94a3b8 !important;
+  color: #334155 !important;
+}
+html.light button.bg-slate-600 {
+  background-color: #e2e8f0 !important;
+  border: 1.5px solid #94a3b8 !important;
+  color: #1e293b !important;
+}
+
+/* button 上の text-* がアイコン色を上書きするのを防ぐ */
+html.light button.bg-slate-800.text-slate-400,
+html.light button.bg-slate-800.text-slate-500,
+html.light button.bg-slate-800.text-slate-600,
+html.light button.bg-slate-800.text-neo-400,
+html.light a.bg-slate-800.text-slate-400,
+html.light a.bg-slate-800.text-slate-500 { color: #475569 !important; }
+
+/* 折りたたみヘッダー (bg-slate-800/60) */
+html.light .bg-slate-800\/60 { background-color: #ffffff !important; border-bottom: 1px solid #e2e8f0; }
+html.light .bg-slate-700\/60 { background-color: #f8fafc !important; }
+
+/* セグメントコントロール用コンテナ div (フォントサイズ・矢印太さ・テーマ切替など) */
+html.light div.bg-slate-800 {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+/* セレクト・テキストエリア */
+html.light select.bg-slate-800 { background-color: #ffffff !important; border: 1.5px solid #cbd5e1 !important; color: #1e293b !important; }
+html.light textarea.bg-slate-900 { background-color: #ffffff !important; color: #1e293b !important; }
+
+/* ナビゲーション非アクティブアイコンを少し濃く */
+html.light nav .text-slate-500 { color: #334155 !important; }
+
+/* テーブル */
+html.light thead th { background-color: #f1f5f9 !important; color: #475569 !important; }
+html.light tbody td { color: #334155 !important; }
+html.light tbody tr:hover td { background-color: #f1f5f9 !important; }
