@@ -120,6 +120,8 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
   const [selWord, setSelWord]             = useState(null)
   const [popup, setPopup]                 = useState(null)
   const [textItemCount, setTextItemCount] = useState(null)
+  const [neo4jJob, setNeo4jJob]           = useState(null) // {status,jobId,graphUrl,error}
+  const neo4jPollRef                      = useRef(null)
   const [textDiag, setTextDiag]           = useState('')
 
   const textItemsRef   = useRef([])   // [{str, tx, ty, w, fontH}] PDF座標
@@ -934,15 +936,37 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
     closePopup()
   }
 
-  // Neo4j：GET + クエリパラメータ（CORSプリフライト不要・最もシンプル）
+  // Neo4j：選択テキストを concept として analogy-api に送信し、結果をポーリング
   const handleNeo4j = async () => {
     const { url } = loadNeo4jApiSettings()
     if (!url) { alert('Neo4j API URL が未設定です（設定タブ）'); return }
+    const concept = toHankaku(selWord.str)
     closePopup()
+    if (neo4jPollRef.current) clearInterval(neo4jPollRef.current)
+    setNeo4jJob({ status: 'running', jobId: null })
     try {
-      const endpoint = url.replace(/\/?$/, '') // 末尾スラッシュ除去
-      await fetch(`${endpoint}?concept=${encodeURIComponent(toHankaku(selWord.str))}`)
-    } catch (e) { console.error('Neo4j API error:', e) }
+      const base = url.replace(/\/run_graph\/?$/, '')
+      const res = await fetch(`${base}/run_graph?concept=${encodeURIComponent(concept)}`)
+      const { job_id } = await res.json()
+      setNeo4jJob({ status: 'running', jobId: job_id })
+      let tries = 0
+      neo4jPollRef.current = setInterval(async () => {
+        try {
+          const r = await fetch(`${base}/result/${job_id}`)
+          const d = await r.json()
+          if (d.data?.status === 'done') {
+            clearInterval(neo4jPollRef.current)
+            setNeo4jJob({ status: 'done', jobId: job_id, graphUrl: d.data.graph_url })
+          } else if (d.data?.status === 'error') {
+            clearInterval(neo4jPollRef.current)
+            setNeo4jJob({ status: 'error', jobId: job_id, error: d.data.error })
+          }
+        } catch {}
+        if (++tries >= 20) clearInterval(neo4jPollRef.current)
+      }, 3000)
+    } catch (e) {
+      setNeo4jJob({ status: 'error', error: e.message })
+    }
   }
 
   // ---- スタイラスダブルタップ：touchend + touchType='stylus' で確実検知 ----------
@@ -1533,6 +1557,35 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
 
 
       {/* ポップアップ */}
+      {neo4jJob && (
+        <div style={{position:'fixed',bottom:80,left:'50%',transform:'translateX(-50%)',zIndex:300,maxWidth:320,width:'calc(100% - 32px)'}}>
+          <div className={`rounded-2xl shadow-2xl border overflow-hidden ${neo4jJob.status==='done'?'bg-teal-50 border-teal-200':neo4jJob.status==='error'?'bg-rose-50 border-rose-200':'bg-white border-slate-200'}`}>
+            <div className="flex items-center gap-3 px-4 py-3">
+              {neo4jJob.status === 'running' && <Loader size={16} className="animate-spin text-blue-500 shrink-0"/>}
+              {neo4jJob.status === 'done'    && <span className="text-teal-600 font-bold shrink-0">✓</span>}
+              {neo4jJob.status === 'error'   && <span className="text-rose-500 font-bold shrink-0">✕</span>}
+              <div className="flex-1 min-w-0">
+                {neo4jJob.status === 'running' && <p className="text-sm font-medium text-slate-700">グラフ生成中…</p>}
+                {neo4jJob.status === 'done'    && <p className="text-sm font-medium text-teal-700">グラフ生成完了</p>}
+                {neo4jJob.status === 'error'   && <p className="text-sm font-medium text-rose-600 truncate">{neo4jJob.error || 'エラーが発生しました'}</p>}
+                {neo4jJob.jobId && <p className="text-[10px] text-slate-400 font-mono truncate">{neo4jJob.jobId}</p>}
+              </div>
+              <button onClick={() => { if(neo4jPollRef.current) clearInterval(neo4jPollRef.current); setNeo4jJob(null) }}
+                className="shrink-0 text-slate-400 active:text-slate-600"><X size={14}/></button>
+            </div>
+            {neo4jJob.status === 'done' && neo4jJob.graphUrl && (
+              <div className="px-4 pb-3">
+                <button onClick={() => openInChrome(neo4jJob.graphUrl)}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold active:bg-teal-600">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="5.5" cy="4.5" r="3" stroke="currentColor" strokeWidth="1.4"/><circle cx="10.5" cy="11.5" r="3" stroke="currentColor" strokeWidth="1.4"/><line x1="7.5" y1="6.5" x2="8.5" y2="9.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="5.5" cy="4.5" r="1.2" fill="currentColor"/><circle cx="10.5" cy="11.5" r="1.2" fill="currentColor"/></svg>
+                  Graphistry で開く
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {popup && selWord && (
         <div style={{position:'fixed',left:popup.screenX,top:popup.screenY,transform:'translateX(-50%)',zIndex:200}}>
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden" style={{minWidth:240,maxWidth:340}}>
