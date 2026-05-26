@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 
 const HANDLE_W   = 22
 const HANDLE_H   = 68
@@ -49,7 +49,7 @@ export default function CalcPanel({ open, onOpenChange: setOpen }) {
   const [op,    setOp]    = useState(null)
   const [fresh, setFresh] = useState(false)
 
-  const press = (btn) => {
+  const press = useCallback((btn) => {
     if (disp === 'Error') {
       setDisp('0'); setPrev(null); setOp(null); setFresh(false)
       if (btn === 'C') return
@@ -77,19 +77,31 @@ export default function CalcPanel({ open, onOpenChange: setOpen }) {
       const r = compute(prev ?? parseFloat(disp), op, parseFloat(disp))
       setDisp(fmt(r)); setPrev(null); setOp(null); setFresh(true)
     }
-  }
+  }, [disp, fresh, prev, op])
+
+  const handleBtnDown = useCallback((e, btn) => {
+    e.preventDefault()
+    press(btn)
+  }, [press])
 
   return (
     <>
+      <style>{`
+        .calc-btn:active { background: rgba(255,255,255,0.15) !important; }
+        .calc-btn-eq:active { background: #d97706 !important; }
+      `}</style>
+
       {/* 画面外タップで閉じる */}
       {open && (
-        <div onClick={() => setOpen(false)}
-          style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'transparent' }} />
+        <div
+          onPointerDown={() => setOpen(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'transparent' }}
+        />
       )}
 
       {/* タブ（常時表示） */}
       <div
-        onClick={() => setOpen(v => !v)}
+        onPointerDown={(e) => { e.preventDefault(); setOpen(v => !v) }}
         style={{
           position: 'fixed',
           top: HANDLE_TOP,
@@ -122,19 +134,21 @@ export default function CalcPanel({ open, onOpenChange: setOpen }) {
 
       {/* ポップアップ（タブの右隣に表示） */}
       {open && (
-        <div style={{
-          position: 'fixed',
-          top: HANDLE_TOP,
-          left: HANDLE_W + 6,
-          zIndex: 9999,
-          width: PANEL_W,
-          background: '#0f172a',
-          borderRadius: 14,
-          boxShadow: '4px 4px 24px rgba(0,0,0,0.6)',
-          overflow: 'hidden',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-        }}>
+        <div
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            top: HANDLE_TOP,
+            left: HANDLE_W + 6,
+            zIndex: 9999,
+            width: PANEL_W,
+            background: '#0f172a',
+            borderRadius: 14,
+            boxShadow: '4px 4px 24px rgba(0,0,0,0.6)',
+            overflow: 'hidden',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+          }}>
           {/* ディスプレイ */}
           <div style={{
             padding: '10px 14px 8px',
@@ -167,7 +181,9 @@ export default function CalcPanel({ open, onOpenChange: setOpen }) {
                 const isFn = ['C', '⌫', '±'].includes(btn)
                 const isEq = btn === '='
                 return (
-                  <button key={bi} onClick={() => press(btn)}
+                  <button key={bi}
+                    className={isEq ? 'calc-btn-eq' : 'calc-btn'}
+                    onPointerDown={(e) => handleBtnDown(e, btn)}
                     style={{
                       flex: btn === '0' ? 2 : 1,
                       height: 50,
@@ -179,7 +195,8 @@ export default function CalcPanel({ open, onOpenChange: setOpen }) {
                       borderRight: '1px solid rgba(255,255,255,0.06)',
                       cursor: 'pointer',
                       touchAction: 'manipulation',
-                      WebkitTapHighlightColor: 'rgba(255,255,255,0.1)',
+                      WebkitTapHighlightColor: 'transparent',
+                      transition: 'background 80ms',
                     }}
                   >
                     {btn}
