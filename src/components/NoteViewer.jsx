@@ -291,10 +291,11 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
           const raw  = note.pdfData
           const data = raw instanceof Uint8Array ? raw : new Uint8Array(raw)
           // cMapUrl: 日本語スキャナーが使う Adobe-Japan1 等の CID フォントを解読するために必須
+          // import.meta.env.BASE_URL を使って GitHub Pages サブパスでも正しく解決する
           const doc  = await getDocument({
             data,
             enableXfa: false,
-            cMapUrl:    '/cmaps/',
+            cMapUrl:    `${import.meta.env.BASE_URL}cmaps/`,
             cMapPacked: true,
           }).promise
           if (!cancelled) { setPdfDoc(doc); setTotalPages(doc.numPages) }
