@@ -147,7 +147,6 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
   const canvasCssSizeRef   = useRef({ w: 0, h: 0 }) // CSS サイズキャッシュ（clampPan 用）
   const panRef             = useRef({ x: 0, y: 0 }) // 現在の translate 量（px）
   const autoSaveTimer      = useRef(null)           // 描画の自動保存タイマー
-  const pageNumRef         = useRef(pageNum)        // auto-save の stale closure 防止用
   pageNumRef.current = pageNum
   const prevPageNumRef     = useRef(pageNum)        // ページ遷移前の保存に使う前ページ番号
   const panGestureRef      = useRef(null)       // 1本指パン開始情報
