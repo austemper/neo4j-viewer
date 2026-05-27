@@ -178,6 +178,8 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
     const onStart = (e) => {
       if ([...e.touches].some(t => t.touchType === 'stylus')) return
       if (e.touches.length === 2) {
+        // 未発火の rerenderAtZoom タイマーをキャンセル（ピンチ中に発火して canvasScale/zoomRef が変わるのを防ぐ）
+        clearTimeout(rerenderTimerRef.current)
         pinchRef.current = {
           initialDist: pinchDist(e.touches[0], e.touches[1]),
           initialZoom: zoomRef.current,
@@ -199,7 +201,9 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
       if (e.touches.length === 2 && pinchRef.current) {
         // ---- ピンチズーム ----
         const dist    = pinchDist(e.touches[0], e.touches[1])
-        const newZoom = Math.min(4, Math.max(0.5,
+        // CSS zoom を canvasScale で割って実効ズーム [0.5, 4] に収める
+        const cs = canvasScaleRef.current
+        const newZoom = Math.min(4 / cs, Math.max(0.5 / cs,
           pinchRef.current.initialZoom * (dist / pinchRef.current.initialDist)))
         const rect = getRect()
         const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2
