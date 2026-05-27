@@ -532,23 +532,7 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
     if (stale()) { page.cleanup?.(); return }
     const dpr = window.devicePixelRatio || 1
     const viewport = page.getViewport({ scale: baseFitScaleRef.current * zoom })
-    viewportRef.current = viewport
-    const cssW = viewport.width / dpr
-    const cssH = viewport.height / dpr
-    const d = drawCanvasRef.current
-    d.width = viewport.width; d.height = viewport.height
-    d.style.width = `${cssW}px`; d.style.height = `${cssH}px`
-    loadDrawing(num)
-    const sh = searchHlCanvasRef.current
-    if (sh) { sh.width = viewport.width; sh.height = viewport.height; sh.style.width = `${cssW}px`; sh.style.height = `${cssH}px` }
-    canvasCssSizeRef.current = { w: cssW, h: cssH }
-    // pan はそのまま維持、CSS zoom のみ 1 にリセット
-    zoomRef.current = 1
-    setZoomLevel(1)
-    if (wrapperRef.current) {
-      const { x, y } = panRef.current
-      wrapperRef.current.style.transform = `translate(${x}px,${y}px) scale(1)`
-    }
+    // レンダリング完了まで UI を変えない（途中で旧サイズ+scale(1)が見えるのを防ぐ）
     const tmp = document.createElement('canvas')
     tmp.width = viewport.width; tmp.height = viewport.height
     const task = page.render({ canvasContext: tmp.getContext('2d'), viewport })
@@ -556,10 +540,27 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
     try { await task.promise } catch { page.cleanup?.(); return }
     if (stale()) { page.cleanup?.(); return }
     currentRenderTask.current = null
+    // レンダリング完了後にキャンバスサイズ・transform を一括更新
+    const cssW = viewport.width / dpr
+    const cssH = viewport.height / dpr
+    viewportRef.current = viewport
     const c = pdfCanvasRef.current
     c.width = viewport.width; c.height = viewport.height
     c.style.width = `${cssW}px`; c.style.height = `${cssH}px`
     c.getContext('2d').drawImage(tmp, 0, 0)
+    const d = drawCanvasRef.current
+    d.width = viewport.width; d.height = viewport.height
+    d.style.width = `${cssW}px`; d.style.height = `${cssH}px`
+    loadDrawing(num)
+    const sh = searchHlCanvasRef.current
+    if (sh) { sh.width = viewport.width; sh.height = viewport.height; sh.style.width = `${cssW}px`; sh.style.height = `${cssH}px` }
+    canvasCssSizeRef.current = { w: cssW, h: cssH }
+    zoomRef.current = 1
+    setZoomLevel(1)
+    if (wrapperRef.current) {
+      const { x, y } = panRef.current
+      wrapperRef.current.style.transform = `translate(${x}px,${y}px) scale(1)`
+    }
     page.cleanup?.()
   }, [pdfDoc, loadDrawing])
   rerenderAtZoomRef.current = rerenderAtZoom
