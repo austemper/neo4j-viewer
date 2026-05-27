@@ -97,6 +97,7 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
   penModeRef.current = penMode  // レンダーのたびに最新値を同期（useEffect 内の stale closure 対策）
   const [zoomLevel, setZoomLevel]   = useState(1)
   const baseFitScaleRef  = useRef(1)   // fitScale（zoom=1 時のレンダースケール）
+  const canvasScaleRef   = useRef(1)   // 現キャンバスの renderScale / baseFitScale（rerenderAtZoom で更新）
   const rerenderTimerRef = useRef(null)
   const pageNumRef       = useRef(1)
 
@@ -253,10 +254,11 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
         pinchRef.current = null
         panGestureRef.current = null
         if (wasPinching && noteMeta?.type === 'pdf') {
-          const zoom = zoomRef.current
+          // cssZoom × canvasScale = baseFitScale 基準の絶対ズーム
+          const effectiveZoom = zoomRef.current * canvasScaleRef.current
           const num  = pageNumRef.current
           clearTimeout(rerenderTimerRef.current)
-          rerenderTimerRef.current = setTimeout(() => rerenderAtZoomRef.current?.(zoom, num), 400)
+          rerenderTimerRef.current = setTimeout(() => rerenderAtZoomRef.current?.(effectiveZoom, num), 400)
         }
       }
     }
@@ -363,8 +365,9 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
     // pan + zoom をリセット（メイン PDF キャンバスはまだ変更しない → 旧ページが残り白フラッシュなし）
     const initPanX = Math.max(0, (containerW - cssW) / 2)
     const initPanY = Math.max(0, (containerH - cssH) / 2)
-    panRef.current  = { x: initPanX, y: initPanY }
-    zoomRef.current = 1
+    panRef.current    = { x: initPanX, y: initPanY }
+    zoomRef.current   = 1
+    canvasScaleRef.current = 1
     setZoomLevel(1)
     if (wrapperRef.current)
       wrapperRef.current.style.transform = `translate(${initPanX}px,${initPanY}px) scale(1)`
@@ -555,8 +558,18 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
     const sh = searchHlCanvasRef.current
     if (sh) { sh.width = viewport.width; sh.height = viewport.height; sh.style.width = `${cssW}px`; sh.style.height = `${cssH}px` }
     canvasCssSizeRef.current = { w: cssW, h: cssH }
+    canvasScaleRef.current = zoom  // 絶対ズームを記録（次回 onEnd で cssZoom × canvasScale で正しい値を渡す）
     zoomRef.current = 1
     setZoomLevel(1)
+    // パンをキャンバスサイズに合わせて再クランプ（範囲外になっていれば修正）
+    const containerEl = containerRef.current
+    const cW = containerEl?.clientWidth  || window.innerWidth
+    const navH = navHeightRef?.current ?? 0
+    const cH = Math.max((containerEl?.clientHeight || window.innerHeight) - navH, 80)
+    panRef.current = {
+      x: clampPan(panRef.current.x, cssW, 1, cW),
+      y: clampPan(panRef.current.y, cssH, 1, cH),
+    }
     if (wrapperRef.current) {
       const { x, y } = panRef.current
       wrapperRef.current.style.transform = `translate(${x}px,${y}px) scale(1)`
