@@ -96,6 +96,9 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
   const penModeRef = useRef('pen')
   penModeRef.current = penMode  // レンダーのたびに最新値を同期（useEffect 内の stale closure 対策）
   const [zoomLevel, setZoomLevel]   = useState(1)
+  const baseFitScaleRef  = useRef(1)   // fitScale（zoom=1 時のレンダースケール）
+  const rerenderTimerRef = useRef(null)
+  const pageNumRef       = useRef(1)
 
   // ---- PDF 内検索 -----------------------------------------------------------
   const [showSearchBar,    setShowSearchBar]    = useState(false)
@@ -161,6 +164,10 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
     wrapperRef.current.style.transform = `translate(${x}px,${y}px) scale(${zoomRef.current})`
   }, [])
   useLayoutEffect(() => { applyTransform() })
+
+  // rerenderAtZoom を useEffect 内から常に最新版で呼べるよう ref に保持
+  const rerenderAtZoomRef = useRef(null)
+  rerenderAtZoomRef.current = rerenderAtZoom
 
   // ---- タッチ（ピンチズーム）--------------------------------------------------
   // noteMeta が揃ってから containerRef が DOM に現れるため deps に含める
@@ -244,8 +251,15 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
     const onEnd = (e) => {
       if ([...e.changedTouches].some(t => t.touchType === 'stylus')) return
       if (e.touches.length === 0) {
+        const wasPinching = !!pinchRef.current
         pinchRef.current = null
         panGestureRef.current = null
+        if (wasPinching && noteMeta?.type === 'pdf') {
+          const zoom = zoomRef.current
+          const num  = pageNumRef.current
+          clearTimeout(rerenderTimerRef.current)
+          rerenderTimerRef.current = setTimeout(() => rerenderAtZoomRef.current?.(zoom, num), 400)
+        }
       }
     }
 
@@ -328,6 +342,8 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
       (containerW * dpr) / baseVp.width,
       (containerH * dpr) / baseVp.height,
     )
+    baseFitScaleRef.current = fitScale
+    pageNumRef.current = num
     const viewport = page.getViewport({ scale: fitScale })
     viewportRef.current = viewport
 
@@ -503,6 +519,51 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
 
     setSelWord(null); setPopup(null)
   }, [pdfDoc, noteId, loadDrawing])
+
+  // ---- ズーム後の高解像度再レンダリング ----------------------------------------
+  const rerenderAtZoom = useCallback(async (zoom, num) => {
+    if (!pdfDoc || !pdfCanvasRef.current || zoom < 1.1) return
+    if (currentRenderTask.current) {
+      currentRenderTask.current.cancel()
+      currentRenderTask.current = null
+    }
+    const ver = ++renderVersionRef.current
+    const stale = () => ver !== renderVersionRef.current
+    let page
+    try { page = await pdfDoc.getPage(num) } catch { return }
+    if (stale()) { page.cleanup?.(); return }
+    const dpr = window.devicePixelRatio || 1
+    const viewport = page.getViewport({ scale: baseFitScaleRef.current * zoom })
+    viewportRef.current = viewport
+    const cssW = viewport.width / dpr
+    const cssH = viewport.height / dpr
+    const d = drawCanvasRef.current
+    d.width = viewport.width; d.height = viewport.height
+    d.style.width = `${cssW}px`; d.style.height = `${cssH}px`
+    loadDrawing(num)
+    const sh = searchHlCanvasRef.current
+    if (sh) { sh.width = viewport.width; sh.height = viewport.height; sh.style.width = `${cssW}px`; sh.style.height = `${cssH}px` }
+    canvasCssSizeRef.current = { w: cssW, h: cssH }
+    // pan はそのまま維持、CSS zoom のみ 1 にリセット
+    zoomRef.current = 1
+    setZoomLevel(1)
+    if (wrapperRef.current) {
+      const { x, y } = panRef.current
+      wrapperRef.current.style.transform = `translate(${x}px,${y}px) scale(1)`
+    }
+    const tmp = document.createElement('canvas')
+    tmp.width = viewport.width; tmp.height = viewport.height
+    const task = page.render({ canvasContext: tmp.getContext('2d'), viewport })
+    currentRenderTask.current = task
+    try { await task.promise } catch { page.cleanup?.(); return }
+    if (stale()) { page.cleanup?.(); return }
+    currentRenderTask.current = null
+    const c = pdfCanvasRef.current
+    c.width = viewport.width; c.height = viewport.height
+    c.style.width = `${cssW}px`; c.style.height = `${cssH}px`
+    c.getContext('2d').drawImage(tmp, 0, 0)
+    page.cleanup?.()
+  }, [pdfDoc, loadDrawing])
 
   useEffect(() => {
     if (!pdfDoc) return
