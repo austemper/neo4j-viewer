@@ -166,7 +166,6 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
 
   // rerenderAtZoom を useEffect 内から常に最新版で呼べるよう ref に保持
   const rerenderAtZoomRef = useRef(null)
-  rerenderAtZoomRef.current = rerenderAtZoom
 
   // ---- タッチ（ピンチズーム）--------------------------------------------------
   // noteMeta が揃ってから containerRef が DOM に現れるため deps に含める
@@ -563,6 +562,7 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
     c.getContext('2d').drawImage(tmp, 0, 0)
     page.cleanup?.()
   }, [pdfDoc, loadDrawing])
+  rerenderAtZoomRef.current = rerenderAtZoom
 
   useEffect(() => {
     if (!pdfDoc) return
