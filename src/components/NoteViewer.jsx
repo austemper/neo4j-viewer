@@ -1041,7 +1041,10 @@ export default function NoteViewer({ noteId, splitMode, onToggleSplit, onBack,
             setNeo4jJob({ status: 'error', jobId: job_id, error: d.data.error })
           }
         } catch {}
-        if (++tries >= 20) clearInterval(neo4jPollRef.current)
+        if (++tries >= 20) {
+          clearInterval(neo4jPollRef.current)
+          setNeo4jJob({ status: 'error', error: 'タイムアウト（60秒）: サーバーが応答しませんでした' })
+        }
       }, 3000)
     } catch (e) {
       setNeo4jJob({ status: 'error', error: e.message })
